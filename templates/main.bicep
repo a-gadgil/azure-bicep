@@ -61,6 +61,23 @@ module storageModule '../modules/storage.bicep' = {
   }
 }
 
+// Keyvault Module
+module keyVaultModule '../modules/keyvault.bicep' = {
+  name: 'keyvault-deployment'
+  params: {
+    keyVaultName: 'kv-devops-${uniqueString(resourceGroup().id)}'
+  }
+}
+
+// ACR Module
+
+module acrModule '../modules/acr.bicep' = {
+  name: 'acr-deployment'
+  params: {
+    acrName: 'acrdevops${uniqueString(resourceGroup().id)}'
+  }
+}
+
 // ============= OUTPUTS =============
 output vmIds array = computeModule.outputs.vmIds
 output vmNames array = computeModule.outputs.vmNames
