@@ -16,4 +16,5 @@ param deployStorage = false
 
 param tags = {
   environment: 'dev'
+  owner: 'aditya'
 }
