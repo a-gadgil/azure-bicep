@@ -1,0 +1,15 @@
+stages:
+  - validate
+
+validate_templates:
+  stage: validate
+  image: mcr.microsoft.com/azure-cli:latest
+  script:
+    - echo "Checking Azure CLI and Bicep version..."
+    - az version
+    - az bicep version
+    - echo "Building and validating main.bicep..."
+    - az bicep build --file templates/main.bicep
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
