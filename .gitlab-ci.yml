@@ -5,9 +5,8 @@ validate_templates:
   stage: validate
   image: mcr.microsoft.com/azure-cli:latest
   script:
-    - echo "Checking Azure CLI and Bicep version..."
-    - az version
-    - az bicep version
+    - echo "Installing Bicep CLI..."
+    - az bicep install
     - echo "Building and validating main.bicep..."
     - az bicep build --file templates/main.bicep
   rules:
