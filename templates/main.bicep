@@ -1,88 +1,75 @@
-metadata name = 'Go App Deployment (Modular with Loops & Conditionals)'
-metadata description = 'Orchestrates networking, compute (with loops), and storage (conditional)'
-metadata version = '1.0.0'
+targetScope = 'resourceGroup'
 
-// ============= PARAMETERS =============
-param location string = 'eastus'
+@description('Prefix for resource names')
+param prefix string = 'core'
+
+@description('Environment name identifier')
 param environment string = 'dev'
 
-@minValue(1)
-@maxValue(5)
-param vmCount int = 1  // ← NEW: number of VMs to deploy
+@description('Azure region')
+param location string = resourceGroup().location
 
-@allowed([
-  'Standard_B1s'
-  'Standard_B2s'
-])
-param vmSize string = 'Standard_B2s'
-
-param adminUsername string = 'azureuser'
-
-@secure()
-param adminPassword string
-
-param deployStorage bool = false  // ← NEW: deploy storage or not
-
-param tags object = {}
-
-// ============= MODULES =============
-
-// Networking Module
+// 1. Networking Module
 module networkingModule '../modules/networking.bicep' = {
-  name: 'networkingDeployment'
+  name: 'deploy-networking-${environment}'
   params: {
-    location: location
-    tags: tags
+    prefix: prefix
     environment: environment
+    location: location
   }
 }
 
-// Compute Module (with vmCount loop)
-module computeModule '../modules/compute.bicep' = {
-  name: 'computeDeployment'
-  params: {
-    location: location
-    environment: environment
-    vmCount: vmCount  // ← PASS vmCount
-    vmSize: vmSize
-    adminUsername: adminUsername
-    adminPassword: adminPassword
-    subnetId: networkingModule.outputs.subnetId
-  }
-}
-
-// Storage Module (conditional)
+// 2. Storage Module
 module storageModule '../modules/storage.bicep' = {
-  name: 'storageDeployment'
+  name: 'deploy-storage-${environment}'
   params: {
-    location: location
+    prefix: prefix
     environment: environment
-    deployStorage: deployStorage  // ← PASS conditional flag
+    location: location
   }
 }
 
-// Keyvault Module
-module keyVaultModule '../modules/keyvault.bicep' = {
-  name: 'keyvault-deployment'
+// 3. Compute Module
+module computeModule '../modules/compute.bicep' = {
+  name: 'deploy-compute-${environment}'
   params: {
-    keyVaultName: 'kv-devops-${uniqueString(resourceGroup().id)}'
+    prefix: prefix
+    environment: environment
+    location: location
   }
 }
 
-// ACR Module
+// 4. Key Vault Module
+module keyvaultModule '../modules/keyvault.bicep' = {
+  name: 'deploy-keyvault-${environment}'
+  params: {
+    prefix: prefix
+    environment: environment
+    location: location
+  }
+}
 
+// 5. ACR Module
 module acrModule '../modules/acr.bicep' = {
-  name: 'acr-deployment'
+  name: 'deploy-acr-${environment}'
   params: {
-    acrName: 'acrdevops${uniqueString(resourceGroup().id)}'
+    prefix: prefix
+    environment: environment
+    location: location
   }
 }
 
-// ============= OUTPUTS =============
-output vmIds array = computeModule.outputs.vmIds
-output vmNames array = computeModule.outputs.vmNames
-output privateIpAddresses array = computeModule.outputs.privateIpAddresses
-output vnetId string = networkingModule.outputs.vnetId
-output nsgId string = networkingModule.outputs.nsgId
-output storageAccountId string = storageModule.outputs.storageAccountId
-output storageAccountName string = storageModule.outputs.storageAccountName
+// 6. Function App Module
+module functionModule '../modules/azure-functions.bicep' = {
+  name: 'deploy-function-${environment}'
+  params: {
+    prefix: prefix
+    envName: environment
+    location: location
+    runtimeWorker: 'node'
+    runtimeVersion: '20'
+  }
+}
+
+// Outputs
+output functionAppHostName string = functionModule.outputs.functionAppHostName
