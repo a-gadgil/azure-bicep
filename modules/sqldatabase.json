@@ -1,0 +1,145 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.48.1.52935",
+      "templateHash": "8363220736206004370"
+    }
+  },
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "metadata": {
+        "description": "The environment name (e.g. dev, stag, prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the resources"
+      }
+    },
+    "serverName": {
+      "type": "string",
+      "metadata": {
+        "description": "Base name for the SQL Server"
+      }
+    },
+    "databaseName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the SQL Database"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Administrator login username for the SQL Server"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Administrator login password for the SQL Server"
+      }
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "metadata": {
+        "description": "SQL Database SKU Name"
+      }
+    },
+    "skuTier": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "metadata": {
+        "description": "SQL Database Tier"
+      }
+    },
+    "skuCapacity": {
+      "type": "int",
+      "defaultValue": 5,
+      "metadata": {
+        "description": "SQL Database Capacity"
+      }
+    },
+    "maxSizeBytes": {
+      "type": "int",
+      "defaultValue": 2147483648,
+      "metadata": {
+        "description": "Maximum size of the database in bytes"
+      }
+    }
+  },
+  "variables": {
+    "resourceTags": {
+      "Environment": "[parameters('environment')]",
+      "ManagedBy": "Bicep"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2022-05-01-preview",
+      "name": "[parameters('serverName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('resourceTags')]",
+      "properties": {
+        "administratorLogin": "[parameters('adminUsername')]",
+        "administratorLoginPassword": "[parameters('adminPassword')]",
+        "version": "12.0",
+        "publicNetworkAccess": "Enabled",
+        "minimalTlsVersion": "1.2"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2022-05-01-preview",
+      "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('resourceTags')]",
+      "sku": {
+        "name": "[parameters('skuName')]",
+        "tier": "[parameters('skuTier')]",
+        "capacity": "[parameters('skuCapacity')]"
+      },
+      "properties": {
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "maxSizeBytes": "[parameters('maxSizeBytes')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('serverName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers/firewallRules",
+      "apiVersion": "2022-05-01-preview",
+      "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAllWindowsAzureIps')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', parameters('serverName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "sqlServerFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Sql/servers', parameters('serverName')), '2022-05-01-preview').fullyQualifiedDomainName]"
+    },
+    "sqlServerId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Sql/servers', parameters('serverName'))]"
+    },
+    "sqlDatabaseId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Sql/servers/databases', parameters('serverName'), parameters('databaseName'))]"
+    }
+  }
+}
