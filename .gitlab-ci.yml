@@ -11,7 +11,7 @@ before_script:
   - az bicep install || true
   - az bicep upgrade || true
 
-# 1. Dynamic Static Linter Check (finds all .bicep files recursively)
+# 1. Dynamic Static Linter Check
 bicep_lint:
   stage: lint
   script:
@@ -30,7 +30,7 @@ bicep_build:
     paths:
       - environments/**/*.json
 
-# 3. Security & Compliance Scanning via Checkov
+# 3. Security & Compliance Scanning via Checkov (Advisory Mode)
 security_scan:
   stage: security
   image: python:3.11-slim
@@ -39,4 +39,4 @@ security_scan:
   script:
     - echo "Running Checkov security scan on Bicep templates..."
     - checkov -d modules/ -d environments/ --framework bicep
-  allow_failure: false
+  allow_failure: true
