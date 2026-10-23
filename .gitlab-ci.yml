@@ -5,42 +5,30 @@ stages:
 
 image: mcr.microsoft.com/azure-cli:latest
 
-variables:
-  BICEP_VERSION: "latest"
-
 before_script:
   - echo "Initializing Azure CLI and Bicep tools..."
   - az --version
   - az bicep install || true
   - az bicep upgrade || true
 
-# 1. Static Linter Check
+# 1. Dynamic Static Linter Check (finds all .bicep files recursively)
 bicep_lint:
   stage: lint
   script:
-    - echo "Running Bicep linter on modules..."
-    - az bicep lint --file modules/compute.bicep
-    - az bicep lint --file modules/storage.bicep
-    - az bicep lint --file modules/keyvault.bicep
-    - az bicep lint --file modules/networking.bicep
-    - az bicep lint --file modules/acr.bicep
-    - az bicep lint --file modules/sqldatabase.bicep
-    # Alternatively, you can use a dynamic loop:
-    # for f in modules/*.bicep; do az bicep lint --file "$f"; done
+    - echo "Running Bicep linter on all modules and environments..."
+    - find modules -name "*.bicep" -exec az bicep lint --file {} \;
 
-# 2. Compilation / Build Check (Translates Bicep to ARM JSON)
+# 2. Dynamic Compilation / Build Check
 bicep_build:
   stage: build
   script:
-    - echo "Compiling environment Bicep templates into ARM JSON..."
-    - az bicep build --file environments/dev/main.bicep || echo "Check dev main.bicep"
-    - az bicep build --file environments/stag/main.bicep || echo "Check stag main.bicep"
-    - az bicep build --file environments/prod/main.bicep || echo "Check prod main.bicep"
+    - echo "Compiling all environment Bicep templates into ARM JSON..."
+    - find environments -name "main.bicep" -exec az bicep build --file {} \;
   artifacts:
     name: "arm-templates-$CI_COMMIT_SHA"
     expire_in: 7 days
     paths:
-      - environments/**/main.json
+      - environments/**/*.json
 
 # 3. Security & Compliance Scanning via Checkov
 security_scan:
