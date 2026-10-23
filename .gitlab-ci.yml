@@ -1,0 +1,42 @@
+stages:
+  - lint
+  - build
+  - security
+
+image: mcr.microsoft.com/azure-cli:latest
+
+before_script:
+  - echo "Initializing Azure CLI and Bicep tools..."
+  - az --version
+  - az bicep install || true
+  - az bicep upgrade || true
+
+# 1. Dynamic Static Linter Check
+bicep_lint:
+  stage: lint
+  script:
+    - echo "Running Bicep linter on all modules and environments..."
+    - find modules -name "*.bicep" -exec az bicep lint --file {} \;
+
+# 2. Dynamic Compilation / Build Check
+bicep_build:
+  stage: build
+  script:
+    - echo "Compiling all environment Bicep templates into ARM JSON..."
+    - find environments -name "main.bicep" -exec az bicep build --file {} \;
+  artifacts:
+    name: "arm-templates-$CI_COMMIT_SHA"
+    expire_in: 7 days
+    paths:
+      - environments/**/*.json
+
+# 3. Security & Compliance Scanning via Checkov (Advisory Mode)
+security_scan:
+  stage: security
+  image: python:3.11-slim
+  before_script:
+    - pip install checkov
+  script:
+    - echo "Running Checkov security scan on Bicep templates..."
+    - checkov -d modules/ -d environments/ --framework bicep
+  allow_failure: true
