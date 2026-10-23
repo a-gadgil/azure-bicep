@@ -1,0 +1,74 @@
+name: Azure Bicep CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  bicep_lint:
+    name: Bicep Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Azure CLI
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az --version
+            az bicep install
+
+      - name: Run Bicep Linter
+        run: |
+          echo "Running Bicep linter on all modules..."
+          find modules -name "*.bicep" -exec az bicep lint --file {} \;
+
+  bicep_build:
+    name: Bicep Build & Compile
+    runs-on: ubuntu-latest
+    needs: bicep_lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Azure CLI
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az --version
+            az bicep install
+
+      - name: Compile Bicep Templates
+        run: |
+          echo "Compiling all environment Bicep templates into ARM JSON..."
+          find environments -name "main.bicep" -exec az bicep build --file {} \;
+
+      - name: Upload ARM Templates as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm-templates
+          path: environments/**/*.json
+
+  security_scan:
+    name: Security Scan (Checkov)
+    runs-on: ubuntu-latest
+    continue-on-error: true # Advisory mode for sandbox learning
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov Security Scan
+        run: |
+          echo "Running Checkov security scan on Bicep templates..."
+          checkov -d modules/ -d environments/ --framework bicep
